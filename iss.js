@@ -1,32 +1,43 @@
-
-/**
- * Makes a single API request to retrieve the user's IP address.
- * Input:
- *   - A callback (to pass back an error or the IP string)
- * Returns (via Callback):
- *   - An error, if any (nullable)
- *   - The IP address as a string (null if error). Example: "162.245.144.188"
-*/
 const needle = require('needle');
-const fetchMyIP = function(callback) { 
+const fetchMyIP = function(callback) {
   // use request to fetch IP address from JSON API
-  needle.get("http://api.ipify.org?format=json", (err, response) => {
+  needle.get("http://api.ipify.org?format=json", (err, response, body) => {
     if (err) {
-      callback(err, null);
+      return callback(err, null);
     }
 
     if (response.statusCode !== 200) {
-      const msg = `Status Code ${response.statusCode} when fetching IP. Response: ${body}`;
-      callback(Error(msg), null);
+      callback(new Error(`HTTP Status: ${response.statusCode}`), null);
+      return;
     }
-      const data = response.body;
-      if (data && data.ip) {
-        callback(null, data.ip);
-        
-      } else {
-        callback(new Error("IP address not found"), null)
-      }
+    const ip = body.ip;
+    callback(null, ip);
+  });
+};
+
+const fetchCoordsByIp = function(ip, callback) {
+  needle.get(`http://ipwho.is/${ip}`, (err, response, body) =>{
+   
+    if (err) {
+      return callback(err, null);
+    }
     
-  }) 
-}
-module.exports = { fetchMyIP };
+    if (!body.success) { // if success: false - IP address doesn't exist
+      const msg = `Success status was ${body.success}. Server message says: ${body.message} when fetching for IP ${body.ip}`;
+      callback(new Error(msg), null);
+      return;
+    }
+    
+    const latitude = body.latitude;
+    const longitude = body.longitude;
+    callback(null, {latitude, longitude});
+
+  
+  });
+ 
+};
+
+module.exports = {
+  fetchMyIP,
+  fetchCoordsByIp
+};
